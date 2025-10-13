@@ -12,6 +12,7 @@
 		private $tableH = 'registro_historial';
 		private $tableC = 'codigo';
 		private $tableP = 'premio';
+		private $tableCa = 'cafe';
 		private $tableU = 'seg_usuario';
 		private $response;	
 
@@ -267,6 +268,35 @@
 			return $this->response;
 		}
 
+		// obtener id a quien se le ha entregado cafe
+		public function getCafeEntregado($fk_codigo) {
+			$this->response->result = $this->db
+				->from($this->tableCa)
+				->where("$this->tableCa.fk_codigo", $fk_codigo)
+				->where("$this->tableCa.status", 1)
+				->fetch();
+			if($this->response->result) {
+				$this->response->SetResponse(true);
+			} else {
+				$this->response->SetResponse(false, 'No existe el registro');
+			}
+			return $this->response;
+		}
+
+		// Obtener total de los registros de cafe
+		public function getCountCafe() {
+			$this->response->result = $this->db
+				->from($this->tableCa)
+				->where("$this->tableCa.status", 1)
+				->count();
+			if($this->response->result) {
+				$this->response->SetResponse(true);
+			} else {
+				$this->response->SetResponse(false, 'No existe el registro');
+			}
+			return $this->response;
+		}
+
 		// Obtener los datos de los registro
 		public function getAll() {
 			$this->response->result = $this->db
@@ -348,6 +378,24 @@
 			} catch(\PDOException $ex) {
 				$this->response->errors = $ex;
 				$this->response->SetResponse(false, "catch: Add model $this->tableP");
+			}
+			return $this->response;
+		}
+
+		//	agregar cafe
+		public function addCafe($data) {
+			try {
+				$this->response->result = $this->db
+					->insertInto($this->tableCa, $data)
+					->execute();
+				if($this->response->result != 0){
+					$this->response->SetResponse(true, 'id del registro: '.$this->response->result);
+				}else { 
+					$this->response->SetResponse(false, 'No se inserto el registro'); 
+				}
+			} catch(\PDOException $ex) {
+				$this->response->errors = $ex;
+				$this->response->SetResponse(false, "catch: Add model $this->tableCa");
 			}
 			return $this->response;
 		}

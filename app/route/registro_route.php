@@ -65,6 +65,12 @@
 			return $res->withJson($resultado);
 		});
 
+		// Ruta para obtener total de cafés entregados
+		$this->get('getCountCafe/', function ($req, $res, $args) {
+			$resultado = $this->model->registro->getCountCafe();
+			return $res->withJson($resultado);
+		});
+
 		// Ruta para obtener los datos de registro por medio del ID que cuentan con premio
 		$this->get('getPremio/{codigo}', function ($req, $res, $args) {
 			$this->model->transaction->iniciaTransaccion();			
@@ -107,6 +113,37 @@
 						$resultado->state = $this->model->transaction->regresaTransaccion();
 						return $res->withJson($resultado->setResponse(false, 'No has visitado ningun stand'));
 					}
+				}
+			}else{
+				$checkCode->result = 0;
+				$checkCode->state = $this->model->transaction->regresaTransaccion();
+				return $res->withJson($checkCode->setResponse(false, 'QR incorrecto'));
+			}	
+		});
+
+		// Ruta para obtener cafe
+		$this->get('getCafe/{codigo}', function ($req, $res, $args) {
+			$this->model->transaction->iniciaTransaccion();
+			$checkCode = $this->model->registro->getByCodigo($args['codigo']);
+			if($checkCode->response){
+				$idCode = $checkCode->result->id;
+				$checkCafe = $this->model->registro->getCafeEntregado($idCode);
+				if($checkCafe->response){
+					$checkCafe->result = 0;
+					$checkCafe->state = $this->model->transaction->regresaTransaccion();
+					return $res->withJson($checkCode->setResponse(false, 'Café ya fue entregado'));
+				}else{
+					$data = array(
+						'fk_codigo' => $idCode,
+					);
+					$resultado2 = $this->model->registro->addCafe($data);
+					if(!$resultado2->response){
+						$resultado2->result = 0;
+						$resultado2->state = $this->model->transaction->regresaTransaccion();
+						return $res->withJson($resultado2->setResponse(false, 'Ocurrio algo extraño. Vuelve a intentar'));
+					}
+					$resultado2->state = $this->model->transaction->confirmaTransaccion(); 
+					return $res->withJson($resultado2->setResponse(true, "Felicidades"));
 				}
 			}else{
 				$checkCode->result = 0;
