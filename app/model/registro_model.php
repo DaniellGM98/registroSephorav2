@@ -14,6 +14,7 @@
 		private $tableP = 'premio';
 		private $tableCa = 'cafe';
 		private $tableU = 'seg_usuario';
+		private $tableV = 'variable';
 		private $response;	
 
 		public function __CONSTRUCT($db) {
@@ -89,8 +90,8 @@
 			return $this->response;
 		}
 
-		// Obtener los datos de registro por medio del ID
-		public function getCountVisitas($fk_codigo) {
+		// Obtener los datos de registro por medio del ID CON ZONAS
+		/*public function getCountVisitas($fk_codigo) {
 		    $sql = "SELECT COUNT(DISTINCT zona) AS total
                     FROM {$this->table}
                     WHERE fk_codigo = :fk
@@ -99,6 +100,24 @@
             $stmt = $this->db->getPdo()->prepare($sql);
             $stmt->execute([':fk' => $fk_codigo]);
             $this->response->result = (int) $stmt->fetchColumn();
+			if($this->response->result) {
+				$this->response->SetResponse(true);
+			} else {
+				$this->response->SetResponse(false, 'No existe el registro');
+			}
+			return $this->response;
+		}*/
+
+		// Obtener los datos de registro por medio del ID SIN ZONAS
+		public function getCountVisitas($fk_codigo) {
+		    $this->response->result = $this->db
+				->from($this->table)
+				->select(null)->select('COUNT(*) Total')
+                ->where('fk_codigo', $fk_codigo)
+                ->where('fecha_Salida IS NOT NULL')
+				->where('status', 1)
+				->fetch()
+				->Total;
 			if($this->response->result) {
 				$this->response->SetResponse(true);
 			} else {
@@ -297,6 +316,21 @@
 			return $this->response;
 		}
 
+		// Obtener variable
+		public function getVariable($nombre) {
+			$this->response->result = $this->db
+				->from($this->tableV)
+				->where("$this->tableV.variable", $nombre)
+				->where("$this->tableV.status", 1)
+				->fetch();
+			if($this->response->result) {
+				$this->response->SetResponse(true);
+			} else {
+				$this->response->SetResponse(false, 'No existe el registro');
+			}
+			return $this->response;
+		}
+
 		// Obtener los datos de los registro
 		public function getAll() {
 			$this->response->result = $this->db
@@ -316,7 +350,7 @@
 				->innerJoin($this->tableU." ON $this->table.fk_seg_usuario = $this->tableU.id")
 				->where("$this->table.fk_codigo", $fk_codigo)
 				->where("$this->table.status", 1)
-				->orderBy("$this->table.fecha_entrada Desc")
+				->orderBy("$this->table.fecha_entrada desc")
 				->fetchAll();
 			if($registros) {
 				$this->response->result = $registros;
@@ -418,5 +452,27 @@
 			}
 			return $this->response;
 		}
+
+		// Modificar variable de premio
+		public function editPremio($data) {
+			date_default_timezone_set('America/Mexico_City');
+			$data['fecha_modificacion'] = date('Y-m-d H:i:s');
+			try{
+				$this->response->result = $this->db
+					->update($this->tableV, $data)
+					->where('variable', 'premio')
+					->execute();
+				if($this->response->result!=0) { 
+					$this->response->SetResponse(true, "Premio actualizado"); 
+				}else { 
+					$this->response->SetResponse(false, 'No se edito el registro'); 
+				}
+			} catch(\PDOException $ex) {
+				$this->response->errors = $ex;
+				$this->response->SetResponse(false, "catch: Edit model $this->tableV");
+			}
+			return $this->response;
+		}
+
 	}
 ?>

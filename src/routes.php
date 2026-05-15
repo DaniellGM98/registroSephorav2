@@ -14,7 +14,7 @@
 			// if(!isset($args['name'])) { $args['name'] = HOMEPAGE; }
 
 			if($args['name'] == 'registro' || $page == '') {
-				return $this->renderer->render($response, '404.phtml', $args);
+				return $this->renderer->render($response, 'registro.phtml', $args);
 			}
 			
 			if(!isset($_SESSION)) { session_start(); }

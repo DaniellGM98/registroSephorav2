@@ -141,7 +141,8 @@
 			if(is_object($usuario)) {
 				unset($usuario->password);
 				$this->ultimoAcceso($usuario->id);
-				$this->response->SetResponse(true, 'Acceso correcto,'+$usuario->tipo+','+$usuario->nombre+','+$usuario->nombre_encargado);
+				//$this->response->SetResponse(true, 'Acceso correcto,'+$usuario->tipo+','+$usuario->nombre+','+$usuario->nombre_encargado);
+				$this->response->SetResponse(true, 'Acceso correcto,' . $usuario->tipo . ',' . $usuario->nombre . ',' . $usuario->nombre_encargado);
 			} else {
 				$this->response->SetResponse(false, 'Verifique sus datos');
 			}

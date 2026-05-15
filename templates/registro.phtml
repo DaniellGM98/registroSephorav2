@@ -1,0 +1,637 @@
+<?php
+    require_once './core/defines.php';
+    if (!defined('API_ROOT')) {
+        define('API_ROOT', 'https://zonas.dds.media/');
+    }
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="Lector de pulseras QR con progreso de premio">
+    <title>Lector QR</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-color: #1e2a3a;  
+            background-image: url('/assets/images/sephoraFondo.png');
+            background-size: contain;
+            background-position: center;
+            background-repeat: repeat;
+            background-attachment: fixed;    
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+            padding: 2rem 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-weight: 600;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+        
+        h2 {
+            text-align: center;
+            color: white;
+            font-weight: 350;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .sub {
+            text-align: center;
+            color: #cbd5e1;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .scan-area {
+            /*background: #0f172a;*/
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            color: #94a3b8;
+            font-weight: 500;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #qrInput {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-size: 1.2rem;
+            color: white;
+            font-family: monospace;
+            letter-spacing: 1px;
+            outline: none;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        #qrInput:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+        }
+
+        .helper {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+
+        .result-area {
+            /*background: #0f172a;*/
+            border-radius: 1.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        /* Estilos para el progreso del premio */
+        .progress-container {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border-radius: 1.5rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(59,130,246,0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .progress-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #f1f5f9;
+            margin-bottom: 0.8rem;
+            text-align: center;
+            letter-spacing: -0.3px;
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.8rem;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #0f172a;
+            border-radius: 1rem;
+            padding: 0.6rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #3b82f6;
+            line-height: 1;
+        }
+
+        .progress-bar-bg {
+            background-color: #1e293b;
+            border-radius: 1rem;
+            height: 12px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-bar-fill {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            width: 0%;
+            height: 100%;
+            border-radius: 1rem;
+            transition: width 0.5s ease-out;
+        }
+
+        /* Mensaje de premio alcanzado */
+        .premio-message {
+            background: linear-gradient(135deg, #009933, #009933);
+            border-radius: 1rem;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: bold;
+            color: #ffffff;
+            font-size: 1.5rem;
+            border: 1px solid #009933;
+            box-shadow: 0 0 15px rgba(0,153,51,0.4);
+        }
+
+        /* Mensaje de stands faltantes */
+        .faltante-message {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 1rem;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: bold;
+            color: #ffffff;
+            font-size: 0.9rem;
+            border: 1px solid #fbbf24;
+            box-shadow: 0 0 15px rgba(245,158,11,0.4);
+        }
+
+        /* Grid para las tarjetas en dos columnas */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        /* Tarjetas de resultados dentro del grid */
+        .cards-grid .result-card {
+            margin-bottom: 0;
+            height: 100%;
+        }
+
+        /* Para pantallas pequeñas, una sola columna */
+        @media (max-width: 480px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Tarjetas de resultados */
+        .result-card {
+            background: #1e293b;
+            border-radius: 1.2rem;
+            padding: 1rem;
+            border-left: 5px solid #3b82f6;
+            transition: 0.1s linear;
+        }
+
+        .result-card:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Tarjeta pendiente (sin fecha_salida) - BORDE ROJO */
+        .result-card-pending {
+            border-left: 5px solid #ef4444;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+        }
+
+        .result-card-pending .result-nombre {
+            color: #ef4444;
+        }
+
+        .result-nombre {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #f1f5f9;
+            margin-bottom: 0.3rem;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .result-detail {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-top: 0.5rem;
+        }
+
+        .badge {
+            background: #2d3a4e;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 0.75rem;
+        }
+
+        .badge.warning {
+            background: #b91c1c;
+            color: white;
+        }
+
+        .error-message {
+            background: rgba(185, 28, 28, 0.2);
+            border-left: 5px solid #ef4444;
+            color: #fecaca;
+            padding: 1rem;
+            border-radius: 1rem;
+            text-align: center;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            color: #3b82f6;
+            padding: 1rem;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59,130,246,0.3);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 1.0rem;
+            color: #ffffff;
+        }
+        
+        .footer2 {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: #ffffff;
+        }
+
+        button {
+            background: #3b82f6;
+            border: none;
+            border-radius: 2rem;
+            padding: 0.6rem 1.2rem;
+            color: white;
+            font-weight: 600;
+            margin-top: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>CONSULTA TUS SELLOS</h1>
+    <h2>Escanea el Código QR</h2>
+    <div class="sub"></div>
+
+    <div class="scan-area">
+        <div class="input-group">
+            <label>Código QR / Pulsera</label>
+            <input type="text" id="qrInput" placeholder="Coloque el código QR frente al lector..." autofocus>
+        </div>
+    </div>
+
+    <div id="resultContainer" class="result-area hidden">
+        <div id="resultContent"></div>
+    </div>
+    <div class="footer">
+        Los resultados se mostrarán por 6 segundos y se reiniciará la pantalla.
+    </div>
+    <div class="footer2">
+        "Si eres parte de Sephora Rewards, en compras superiores a $2,000 llévate una mini bag"<br>
+        Sujeto a disponibilidad.<br> Consulta TyC en https://www.sephora.com.mx/pages/terms.html
+    </div>
+</div>
+
+<script>
+    // URL base de la API
+    const API_BASE_URL = '<?= API_ROOT ?>';
+    
+    // Variables globales
+    let timeoutReset = null;
+    let isProcessing = false;
+    const qrInput = document.getElementById('qrInput');
+    const resultContainer = document.getElementById('resultContainer');
+    const resultContent = document.getElementById('resultContent');
+
+    function clearResetTimer() {
+        if (timeoutReset) {
+            clearTimeout(timeoutReset);
+            timeoutReset = null;
+        }
+    }
+
+    function resetToOriginal() {
+        resultContainer.classList.add('hidden');
+        resultContent.innerHTML = '';
+        qrInput.value = '';
+        qrInput.disabled = false;
+        isProcessing = false;
+        clearResetTimer();
+        qrInput.focus();
+    }
+
+    function showError(message) {
+        resultContent.innerHTML = `<div class="error-message">⚠️ ${message}</div>`;
+        resultContainer.classList.remove('hidden');
+        clearResetTimer();
+        // Error: 3 segundos
+        timeoutReset = setTimeout(() => resetToOriginal(), 3000);
+    }
+
+    function showLoading() {
+        resultContent.innerHTML = `<div class="loading"><div class="spinner"></div><span>Consultando datos...</span></div>`;
+        resultContainer.classList.remove('hidden');
+    }
+
+    // Función para obtener la meta del premio (número de stands necesarios)
+    async function obtenerMetaPremio() {
+        try {
+            const url = `${API_BASE_URL}registro/getVariable/premio`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (data && data.response === true && data.result) {
+                const meta = parseInt(data.result, 10);
+                return isNaN(meta) ? 0 : meta;
+            }
+            return 0;
+        } catch (error) {
+            console.error('Error al obtener la meta del premio:', error);
+            return 0;
+        }
+    }
+
+    // Función para mostrar resultados y progreso
+    async function displayResults(dataArray) {
+        if (!dataArray || dataArray.length === 0) {
+            showError("No se encontraron registros para este código QR.");
+            return;
+        }
+
+        // 1. Contar stands visitados (con fecha_entrada y fecha_salida)
+        const standsVisitados = dataArray.filter(item => 
+            item['fecha_entrada'] && item['fecha_salida']
+        ).length;
+
+        // 2. Obtener la meta total desde la API
+        const totalStandsRequeridos = await obtenerMetaPremio();
+        
+        // 3. Calcular los que faltan
+        const standsFaltantes = Math.max(0, totalStandsRequeridos - standsVisitados);
+        const porcentaje = totalStandsRequeridos > 0 
+            ? (standsVisitados / totalStandsRequeridos) * 100 
+            : 0;
+
+        // 4. Verificar si cumple o supera la meta
+        const cumplePremio = (standsVisitados >= totalStandsRequeridos) && (totalStandsRequeridos > 0);
+        
+        // 5. Construir el HTML del progreso
+        let htmlProgreso = `
+            <div class="progress-container">
+                <div class="progress-title">PROGRESO</div>
+                <div class="progress-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">REALIZADOS</div>
+                        <div class="stat-number">${standsVisitados}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">REQUERIDOS</div>
+                        <div class="stat-number">${totalStandsRequeridos}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">PENDIENTES</div>
+                        <div class="stat-number">${standsFaltantes}</div>
+                    </div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: ${porcentaje}%;"></div>
+                </div>
+        `;
+        
+        // Mensaje condicional
+        if (cumplePremio) {
+            htmlProgreso += `
+                <div class="premio-message">
+                    🎉 ¡Felicidades!<br> Has alcanzado el Número de sellos
+                </div>
+            `;
+        } else if (totalStandsRequeridos > 0) {
+            htmlProgreso += `
+                <div class="faltante-message">
+                    Te falta realizar ${standsFaltantes} Actividad${standsFaltantes !== 1 ? 'es' : ''}
+                </div>
+            `;
+        }
+        
+        htmlProgreso += `</div>`; // cierre del progress-container
+
+        // 6. Construir el HTML de los registros individuales (tarjetas)
+        let htmlRegistros = '';
+        for (const item of dataArray) {
+            const nombre = escapeHtml(item['nombre'] || 'Sin nombre');
+            const tieneSalida = item['fecha_salida'] && item['fecha_salida'] !== null && item['fecha_salida'] !== '';
+            
+            // Clase condicional: si NO tiene salida, agregar clase 'pending-card'
+            const cardClass = !tieneSalida ? 'result-card result-card-pending' : 'result-card';
+            
+            htmlRegistros += `
+                <div class="${cardClass}">
+                    <div class="result-nombre">${nombre}</div>
+                </div>
+            `;
+        }
+
+        // Envolver las tarjetas en un grid de dos columnas (solo si hay tarjetas)
+        let htmlRegistrosGrid = '';
+        if (htmlRegistros) {
+            htmlRegistrosGrid = `<div class="cards-grid">${htmlRegistros}</div>`;
+        }
+
+        // Combinar progreso y tarjetas en grid
+        resultContent.innerHTML = htmlProgreso + htmlRegistrosGrid;
+        resultContainer.classList.remove('hidden');
+
+        clearResetTimer();
+        // Resultados exitosos: 6 segundos (ajustado a 6000 ms)
+        timeoutReset = setTimeout(() => resetToOriginal(), 6000);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    async function consultarQR(codigo) {
+        if (!codigo || codigo.trim() === '') {
+            showError('El código QR está vacío. Escanea nuevamente.');
+            return;
+        }
+
+        if (isProcessing) {
+            clearResetTimer();
+            resetToOriginal();
+            setTimeout(() => consultarQR(codigo), 100);
+            return;
+        }
+
+        isProcessing = true;
+        qrInput.disabled = true;
+        showLoading();
+
+        try {
+            const url = `${API_BASE_URL}registro/getAllByCodigo/${encodeURIComponent(codigo)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data && data.response === true && Array.isArray(data.result)) {
+                await displayResults(data.result);
+            } else if (data && data.response === false) {
+                showError(data.message || 'La API respondió con error. Código no válido.');
+            } else {
+                showError('Formato de respuesta inesperado.');
+            }
+        } catch (error) {
+            console.error('Error en la consulta:', error);
+            showError('Error de conexión con el servidor. Verifica tu red.');
+        } finally {
+            if (!timeoutReset) {
+                setTimeout(() => {
+                    if (isProcessing) resetToOriginal();
+                }, 3000); // margen extra
+            }
+        }
+    }
+
+    // Evento Enter en el input
+    qrInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const codigo = qrInput.value.trim();
+            if (codigo !== '') {
+                consultarQR(codigo);
+            } else {
+                showError('Escanee un código QR válido.');
+            }
+        }
+    });
+
+    // Botón manual de consulta
+    const addManualButton = () => {
+        const btn = document.createElement('button');
+        btn.textContent = 'Consultar código';
+        btn.style.display = 'block';
+        btn.style.margin = '1rem auto 0';
+        btn.onclick = () => {
+            const codigo = qrInput.value.trim();
+            if (codigo) consultarQR(codigo);
+            else showError('Escribe un código primero');
+        };
+        document.querySelector('.scan-area').appendChild(btn);
+    };
+    addManualButton();
+
+    // Mantener el foco en el input
+    qrInput.focus();
+    document.body.addEventListener('click', () => qrInput.focus());
+</script>
+</body>
+</html>

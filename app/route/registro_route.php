@@ -46,7 +46,7 @@
 				$idCode = $checkCode->result->id;
 				$registros = $this->model->registro->getAllByCodigo($idCode);
 				if($registros->response){
-					$resultado->state = $this->model->transaction->confirmaTransaccion(); 
+					$registros->state = $this->model->transaction->confirmaTransaccion(); 
 					return $res->withJson($registros);
 				}else{
 					$registros->state = $this->model->transaction->regresaTransaccion();
@@ -71,8 +71,8 @@
 			return $res->withJson($resultado);
 		});
 
-		// Ruta para obtener los datos de registro por medio del ID que cuentan con premio
-		$this->get('getPremio/{codigo}', function ($req, $res, $args) {
+		// Ruta para obtener los datos de registro por medio del ID que cuentan con premio CON ZONAS
+		/*$this->get('getPremio/{codigo}', function ($req, $res, $args) {
 			$this->model->transaction->iniciaTransaccion();			
 			$checkCode = $this->model->registro->getByCodigo($args['codigo']);
 			if($checkCode->response){
@@ -107,6 +107,63 @@
 
 							$resultado->state = $this->model->transaction->regresaTransaccion();
 							return $res->withJson($resultado->setResponse(false, "No has alcanzado las condiciones necesarias para el premio \n\nZonas visitadas:\n\n".$zonasTexto) );
+						}
+					}else{
+						$resultado->result = 0;
+						$resultado->state = $this->model->transaction->regresaTransaccion();
+						return $res->withJson($resultado->setResponse(false, 'No has visitado ningun stand'));
+					}
+				}
+			}else{
+				$checkCode->result = 0;
+				$checkCode->state = $this->model->transaction->regresaTransaccion();
+				return $res->withJson($checkCode->setResponse(false, 'QR incorrecto'));
+			}	
+		});*/
+
+		// Ruta para obtener los datos de registro por medio del ID que cuentan con premio SIN ZONAS
+		$this->get('getPremio/{codigo}', function ($req, $res, $args) {
+			$this->model->transaction->iniciaTransaccion();			
+			$checkCode = $this->model->registro->getByCodigo($args['codigo']);
+			if($checkCode->response){
+				$idCode = $checkCode->result->id;
+				$checkPremio = $this->model->registro->getPremioEntregado($idCode);
+				if($checkPremio->response){
+					$checkPremio->result = 0;
+					$checkPremio->state = $this->model->transaction->regresaTransaccion();
+					return $res->withJson($checkCode->setResponse(false, 'Premio ya fue entregado'));
+				}else{
+					$resultado = $this->model->registro->getCountVisitas($idCode);
+					if($resultado->response){
+						$visitas = $resultado->result;
+						$numPremios = $this->model->registro->getVariable('premio');
+						if($numPremios->response){
+							$numPremios = $numPremios->result->valor;
+							if(intval($visitas) >= intval($numPremios)) {
+								$data = array(
+									'fk_codigo' => $idCode,
+								);
+								$resultado2 = $this->model->registro->addPremio($data);
+								if(!$resultado2->response){
+									$resultado2->result = 0;
+									$resultado2->state = $this->model->transaction->regresaTransaccion();
+									return $res->withJson($resultado2->setResponse(false, 'Ocurrio algo extraño. Vuelve a intentar'));
+								}
+		
+								$resultado->result = intval($visitas);
+								$resultado->state = $this->model->transaction->confirmaTransaccion(); 
+								return $res->withJson($resultado->setResponse(true, "Felicidades"));
+							}else{
+								// mostrar cuales faltan
+								$faltanStands = intval($numPremios) - intval($visitas);
+								$resultado->result = 0;
+								$resultado->state = $this->model->transaction->regresaTransaccion();
+								return $res->withJson($resultado->setResponse(false, "No has alcanzado las condiciones necesarias para el premio. Aún te faltan ".$faltanStands." stand") );
+							}
+						}else{
+							$numPremios->result = 0;
+							$numPremios->state = $this->model->transaction->regresaTransaccion();
+							return $res->withJson($numPremios->setResponse(false, 'No has visitado ningun stand'));
 						}
 					}else{
 						$resultado->result = 0;
@@ -170,7 +227,7 @@
 				$resultado->totalBrazaletes = $this->model->registro->getCountBrazaletes($args['fechaInicio'], $args['fechaFin'])->result;
 				return $res->withJson($resultado);
 			}else{
-				return $res->withJson($checkCode->setResponse(false, 'No hay registros'));
+				return $res->withJson($resultado->setResponse(false, 'No hay registros'));
 			}
 			// $resultado = $this->model->registro->getCountPremios()->result;
 			// return $res->withJson($resultado);
@@ -180,6 +237,30 @@
 		$this->get('estadisticaByID/{id}', function ($req, $res, $args) {
 			$resultado = $this->model->registro->getEstadisticaByID($args['id']);
 			return $res->withJson($resultado);
+		});
+
+		//ruta para obtener valor de variable
+		$this->get('getVariable/{nombre}', function ($req, $res, $args) {
+			$resultado = $this->model->registro->getVariable($args['nombre']);
+			if($resultado->response){
+				$resultado->result = $resultado->result->valor;
+			}
+			return $res->withJson($resultado);
+		});
+
+		$this->post('editPremio/{valor}', function ($req, $res, $args) {
+			$this->model->transaction->iniciaTransaccion();
+			$data = array(
+				'valor' => $args['valor'],
+			);
+			$resultado = $this->model->registro->editPremio($data);
+			if($resultado->response){
+				$resultado->state = $this->model->transaction->confirmaTransaccion(); 
+				return $res->withJson($resultado);
+			}else{
+				$resultado->state = $this->model->transaction->regresaTransaccion();
+				return $res->withJson($resultado);
+			}
 		});
 
 		// Ruta para agregar registro de checkIn-checkOut
@@ -509,7 +590,7 @@
 					$item->visita_demo = $resultado3->result;
 				}
 				// Aquí ordenas por visita_general descendente
-				usort($resultado->result, function($a, $b) {
+				usort($registros->result, function($a, $b) {
 					return ($b->visita_general + $b->visita_demo) <=> ($a->visita_general + $a->visita_demo);
 				});				
 			} else {
